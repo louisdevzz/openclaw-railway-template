@@ -75,7 +75,7 @@ Signal integration uses `signal-cli` (included in the Docker image). Setup requi
 
 1. Enter your phone number (with country code, e.g., `+1234567890`) in `/setup`
 2. After setup, open Railway's container console/SSH
-3. Run: `signal-cli -a YOUR_NUMBER link --device-name "Openclaw"`
+3. Run: `signal-cli link -n "Openclaw"` (Do NOT use -a flag when linking)
 4. Scan the QR code with your Signal app: **Settings → Linked Devices → Link New Device**
 5. Your Signal account is now linked to Openclaw
 

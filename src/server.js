@@ -760,10 +760,7 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
         } else {
           const cfgObj = {
             enabled: true,
-            phoneNumber: payload.signalPhoneNumber.trim(),
-            // signal-cli data directory (persistent storage)
-            dataDir: process.env.SIGNAL_DATA_DIR || "/data/signal",
-            // Optional: device linking via QR code is done separately
+            number: payload.signalPhoneNumber.trim(),
             dmPolicy: "pairing",
             groupPolicy: "allowlist",
           };
@@ -784,7 +781,7 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
           extra += `\n[signal config] exit=${set.code} (output ${set.output.length} chars)\n${set.output || "(no output)"}`;
           extra += `\n[signal verify] exit=${get.code} (output ${get.output.length} chars)\n${get.output || "(no output)"}`;
           extra += `\n[signal] IMPORTANT: You need to link your device using signal-cli. Run:\n`;
-          extra += `signal-cli -a ${payload.signalPhoneNumber.trim()} link --device-name "Openclaw"\n`;
+          extra += `signal-cli link -n "Openclaw"\n`;
           extra += `Then scan the QR code with your Signal app (Settings > Linked Devices).\n`;
         }
       }
@@ -871,26 +868,23 @@ app.get("/setup/api/signal/status", requireSetupAuth, async (_req, res) => {
 });
 
 app.post("/setup/api/signal/link", requireSetupAuth, async (req, res) => {
-  const { phoneNumber, deviceName } = req.body || {};
-  if (!phoneNumber) {
-    return res.status(400).json({ ok: false, error: "Missing phoneNumber" });
-  }
+  const { deviceName } = req.body || {};
   
   const signalDataDir = process.env.SIGNAL_DATA_DIR || "/data/signal";
   const name = deviceName || "Openclaw";
   
   // Generate link URI (this will show a QR code link that user can scan)
+  // Note: 'link' command does NOT use -a (account) flag - the account comes from the phone
   const linkResult = await runCmd("signal-cli", [
     "--config", signalDataDir,
-    "-a", phoneNumber,
     "link",
-    "--device-name", name
+    "-n", name
   ]);
   
   res.status(linkResult.code === 0 ? 200 : 500).json({
     ok: linkResult.code === 0,
     output: linkResult.output,
-    instruction: "If successful, scan the QR code with your Signal app (Settings > Linked Devices)",
+    instruction: "If successful, scan the QR code with your Signal app (Settings > Linked Devices). Note: After linking, use 'config set' to set the linked number in OpenClaw config.",
   });
 });
 
