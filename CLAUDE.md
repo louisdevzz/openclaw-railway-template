@@ -188,6 +188,22 @@ Edit `buildOnboardArgs()` (src/server.js:442-496) to add new CLI flags or auth p
 2. Add config-writing logic in `/setup/api/run` handler (src/server.js)
 3. Update client JS to collect the fields (src/public/setup-app.js)
 
+### Signal Integration
+
+Signal channel requires `signal-cli` (Java-based Signal client):
+
+- **Dockerfile**: Installs `openjdk-17-jre` and `signal-cli` v0.13.12
+- **Storage**: Signal data stored at `/data/signal` (Railway Volume)
+- **Setup**: User enters phone number in setup wizard
+- **Device Linking**: Must be done via SSH/console using `signal-cli link` command
+- **API Endpoints** (src/server.js):
+  - `GET /setup/api/signal/status` — Check signal-cli and accounts
+  - `POST /setup/api/signal/link` — Generate QR code for device linking
+  - `POST /setup/api/signal/register` — Register new phone number
+  - `POST /setup/api/signal/verify` — Verify registration code
+
+**Important**: Signal requires device linking before it can send/receive messages. The linking QR code must be scanned from the Signal mobile app.
+
 ## Railway Deployment Notes
 
 - Template must mount a volume at `/data`

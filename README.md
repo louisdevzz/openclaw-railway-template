@@ -67,6 +67,38 @@ Then:
 4. Copy the **Bot Token** and paste it into `/setup`
 5. Invite the bot to your server (OAuth2 URL Generator → scopes: `bot`, `applications.commands`; then choose permissions)
 
+### Signal setup
+
+Signal integration uses `signal-cli` (included in the Docker image). Setup requires **device linking** (recommended) or phone registration:
+
+#### Option A: Link existing Signal account (Recommended)
+
+1. Enter your phone number (with country code, e.g., `+1234567890`) in `/setup`
+2. After setup, open Railway's container console/SSH
+3. Run: `signal-cli -a YOUR_NUMBER link --device-name "Openclaw"`
+4. Scan the QR code with your Signal app: **Settings → Linked Devices → Link New Device**
+5. Your Signal account is now linked to Openclaw
+
+#### Option B: Register new Signal account
+
+If you don't have Signal on mobile, you can register via API:
+
+```bash
+# Start registration (may need captcha from https://signalcaptchas.org/)
+curl -X POST https://your-app.up.railway.app/setup/api/signal/register \
+  -H "Authorization: Basic $(echo -n 'admin:SETUP_PASSWORD' | base64)" \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "+1234567890"}'
+
+# Verify with the code you received via SMS/voice
+curl -X POST https://your-app.up.railway.app/setup/api/signal/verify \
+  -H "Authorization: Basic $(echo -n 'admin:SETUP_PASSWORD' | base64)" \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "+1234567890", "code": "123456"}'
+```
+
+**Note:** Signal data is stored in `/data/signal` (Railway Volume) for persistence between deploys.
+
 ## Local smoke test
 
 ```bash

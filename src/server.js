@@ -752,6 +752,43 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
         }
       }
 
+      // Signal channel configuration
+      if (payload.signalPhoneNumber?.trim()) {
+        if (!supports("signal")) {
+          extra +=
+            "\n[signal] skipped (this openclaw build does not list signal in `channels add --help`)\n";
+        } else {
+          const cfgObj = {
+            enabled: true,
+            phoneNumber: payload.signalPhoneNumber.trim(),
+            // signal-cli data directory (persistent storage)
+            dataDir: process.env.SIGNAL_DATA_DIR || "/data/signal",
+            // Optional: device linking via QR code is done separately
+            dmPolicy: "pairing",
+            groupPolicy: "allowlist",
+          };
+          const set = await runCmd(
+            OPENCLAW_NODE,
+            clawArgs([
+              "config",
+              "set",
+              "--json",
+              "channels.signal",
+              JSON.stringify(cfgObj),
+            ]),
+          );
+          const get = await runCmd(
+            OPENCLAW_NODE,
+            clawArgs(["config", "get", "channels.signal"]),
+          );
+          extra += `\n[signal config] exit=${set.code} (output ${set.output.length} chars)\n${set.output || "(no output)"}`;
+          extra += `\n[signal verify] exit=${get.code} (output ${get.output.length} chars)\n${get.output || "(no output)"}`;
+          extra += `\n[signal] IMPORTANT: You need to link your device using signal-cli. Run:\n`;
+          extra += `signal-cli -a ${payload.signalPhoneNumber.trim()} link --device-name "Openclaw"\n`;
+          extra += `Then scan the QR code with your Signal app (Settings > Linked Devices).\n`;
+        }
+      }
+
       // Apply changes immediately.
       await restartGateway();
     }
@@ -774,6 +811,8 @@ app.get("/setup/api/debug", requireSetupAuth, async (_req, res) => {
     OPENCLAW_NODE,
     clawArgs(["channels", "add", "--help"]),
   );
+  // Check signal-cli availability
+  const signalCliCheck = await runCmd("signal-cli", ["--version"]);
   res.json({
     wrapper: {
       node: process.version,
@@ -792,6 +831,12 @@ app.get("/setup/api/debug", requireSetupAuth, async (_req, res) => {
       node: OPENCLAW_NODE,
       version: v.output.trim(),
       channelsAddHelpIncludesTelegram: help.output.includes("telegram"),
+      channelsAddHelpIncludesSignal: help.output.includes("signal"),
+    },
+    signalCli: {
+      available: signalCliCheck.code === 0,
+      version: signalCliCheck.code === 0 ? signalCliCheck.output.trim() : null,
+      dataDir: process.env.SIGNAL_DATA_DIR || "/data/signal",
     },
   });
 });
@@ -810,6 +855,84 @@ app.post("/setup/api/pairing/approve", requireSetupAuth, async (req, res) => {
   return res
     .status(r.code === 0 ? 200 : 500)
     .json({ ok: r.code === 0, output: r.output });
+});
+
+// Signal CLI management endpoints
+app.get("/setup/api/signal/status", requireSetupAuth, async (_req, res) => {
+  const signalDataDir = process.env.SIGNAL_DATA_DIR || "/data/signal";
+  const accountsResult = await runCmd("signal-cli", ["--config", signalDataDir, "listAccounts"]);
+  
+  res.json({
+    signalCliAvailable: true,
+    dataDir: signalDataDir,
+    accounts: accountsResult.code === 0 ? accountsResult.output.trim() : null,
+    accountsError: accountsResult.code !== 0 ? accountsResult.output : null,
+  });
+});
+
+app.post("/setup/api/signal/link", requireSetupAuth, async (req, res) => {
+  const { phoneNumber, deviceName } = req.body || {};
+  if (!phoneNumber) {
+    return res.status(400).json({ ok: false, error: "Missing phoneNumber" });
+  }
+  
+  const signalDataDir = process.env.SIGNAL_DATA_DIR || "/data/signal";
+  const name = deviceName || "Openclaw";
+  
+  // Generate link URI (this will show a QR code link that user can scan)
+  const linkResult = await runCmd("signal-cli", [
+    "--config", signalDataDir,
+    "-a", phoneNumber,
+    "link",
+    "--device-name", name
+  ]);
+  
+  res.status(linkResult.code === 0 ? 200 : 500).json({
+    ok: linkResult.code === 0,
+    output: linkResult.output,
+    instruction: "If successful, scan the QR code with your Signal app (Settings > Linked Devices)",
+  });
+});
+
+app.post("/setup/api/signal/register", requireSetupAuth, async (req, res) => {
+  const { phoneNumber, captcha } = req.body || {};
+  if (!phoneNumber) {
+    return res.status(400).json({ ok: false, error: "Missing phoneNumber" });
+  }
+  
+  const signalDataDir = process.env.SIGNAL_DATA_DIR || "/data/signal";
+  const args = ["--config", signalDataDir, "-a", phoneNumber, "register"];
+  if (captcha) {
+    args.push("--captcha", captcha);
+  }
+  
+  const result = await runCmd("signal-cli", args);
+  res.status(result.code === 0 ? 200 : 500).json({
+    ok: result.code === 0,
+    output: result.output,
+    instruction: result.code === 0 
+      ? "Registration started. Use /setup/api/signal/verify to verify with the code you received."
+      : "Registration failed. You may need a captcha from https://signalcaptchas.org/",
+  });
+});
+
+app.post("/setup/api/signal/verify", requireSetupAuth, async (req, res) => {
+  const { phoneNumber, code } = req.body || {};
+  if (!phoneNumber || !code) {
+    return res.status(400).json({ ok: false, error: "Missing phoneNumber or code" });
+  }
+  
+  const signalDataDir = process.env.SIGNAL_DATA_DIR || "/data/signal";
+  const result = await runCmd("signal-cli", [
+    "--config", signalDataDir,
+    "-a", phoneNumber,
+    "verify", code
+  ]);
+  
+  res.status(result.code === 0 ? 200 : 500).json({
+    ok: result.code === 0,
+    output: result.output,
+  });
 });
 
 app.post("/setup/api/reset", requireSetupAuth, async (_req, res) => {

@@ -56,7 +56,21 @@ RUN apt-get update \
     python3 \
     pkg-config \
     sudo \
+    openjdk-17-jre \
+    wget \
+    libstdc++6 \
   && rm -rf /var/lib/apt/lists/*
+
+# Install signal-cli (v0.13.12 - stable version for Signal integration)
+RUN cd /tmp \
+  && SIGNAL_CLI_VERSION=0.13.12 \
+  && wget -q https://github.com/AsamK/signal-cli/releases/download/v${SIGNAL_CLI_VERSION}/signal-cli-${SIGNAL_CLI_VERSION}-Linux.tar.gz \
+  && tar -xzf signal-cli-${SIGNAL_CLI_VERSION}-Linux.tar.gz -C /opt \
+  && ln -sf /opt/signal-cli-${SIGNAL_CLI_VERSION}/bin/signal-cli /usr/local/bin/signal-cli \
+  && rm signal-cli-${SIGNAL_CLI_VERSION}-Linux.tar.gz
+
+# Create signal data directory for persistent storage
+RUN mkdir -p /data/signal && chmod 755 /data/signal
 
 # Install Homebrew (must run as non-root user)
 # Create a user for Homebrew installation, install it, then make it accessible to all users
@@ -87,5 +101,10 @@ RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"'
 COPY src ./src
 
 ENV PORT=8080
+ENV SIGNAL_DATA_DIR=/data/signal
 EXPOSE 8080
+
+# Signal-cli requires persistent storage for keys and session data
+VOLUME ["/data/signal"]
+
 CMD ["node", "src/server.js"]

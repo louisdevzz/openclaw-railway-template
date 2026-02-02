@@ -77,7 +77,8 @@
       telegramToken: document.getElementById('telegramToken').value,
       discordToken: document.getElementById('discordToken').value,
       slackBotToken: document.getElementById('slackBotToken').value,
-      slackAppToken: document.getElementById('slackAppToken').value
+      slackAppToken: document.getElementById('slackAppToken').value,
+      signalPhoneNumber: document.getElementById('signalPhoneNumber').value
     };
 
     logEl.textContent = 'Running...\n';
@@ -103,11 +104,11 @@
   var pairingBtn = document.getElementById('pairingApprove');
   if (pairingBtn) {
     pairingBtn.onclick = function () {
-      var channel = prompt('Enter channel (telegram or discord):');
+      var channel = prompt('Enter channel (telegram, discord, or signal):');
       if (!channel) return;
       channel = channel.trim().toLowerCase();
-      if (channel !== 'telegram' && channel !== 'discord') {
-        alert('Channel must be "telegram" or "discord"');
+      if (channel !== 'telegram' && channel !== 'discord' && channel !== 'signal') {
+        alert('Channel must be "telegram", "discord", or "signal"');
         return;
       }
       var code = prompt('Enter pairing code (e.g. 3EY4PUYS):');
