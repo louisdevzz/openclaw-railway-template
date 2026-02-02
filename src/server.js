@@ -760,7 +760,8 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
         } else {
           const cfgObj = {
             enabled: true,
-            number: payload.signalPhoneNumber.trim(),
+            account: payload.signalPhoneNumber.trim(),
+            cliPath: "signal-cli",
             dmPolicy: "pairing",
             groupPolicy: "allowlist",
           };
