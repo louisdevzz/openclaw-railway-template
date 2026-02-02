@@ -104,7 +104,7 @@ ENV PORT=8080
 ENV SIGNAL_DATA_DIR=/data/signal
 EXPOSE 8080
 
-# Signal-cli requires persistent storage for keys and session data
-VOLUME ["/data/signal"]
+# Note: Railway volumes are configured via dashboard, not Dockerfile
+# Mount a volume at /data in Railway dashboard for persistent Signal data
 
 CMD ["node", "src/server.js"]
